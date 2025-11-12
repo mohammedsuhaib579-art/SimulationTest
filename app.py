@@ -194,9 +194,9 @@ if player.last_events:
     for sector, event in player.last_events.items():
         st.markdown(f"**{event}**")
 
-# History (Player-Specific)
+# History (Player-Specific) - Fixed: Safe key access
 if st.session_state.history:
-    player_history = [h for h in st.session_state.history if h['Player'] == player.name]
+    player_history = [h for h in st.session_state.history if isinstance(h, dict) and h.get('Player') == player.name]
     if player_history:
         df = pd.DataFrame(player_history)
         st.subheader(f"{player.name}'s History")
