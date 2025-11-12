@@ -121,7 +121,9 @@ if not st.session_state.game_started:
 players = st.session_state.players
 current_player = st.session_state.current_player
 player = players[current_player]
-all_active_sectors = [set(p.sectors.keys()) for p in players if p.sectors[s]['active'] for s in p.sectors]
+
+# Fixed: Correct list comprehension for active sectors
+all_players_active_sectors = [set(s for s in p.sectors if p.sectors[s]['active']) for p in players]
 
 # Leaderboard (Public Info)
 st.subheader("🏆 Leaderboard (Public Results)")
@@ -153,7 +155,7 @@ for sector in player.sectors:
 
 if st.sidebar.button("Submit Decisions & Next Turn"):
     if player.round <= player.max_rounds and player.cash > 0:
-        profit = player.process_decisions(investments, prices, productions, active_sectors, all_active_sectors)
+        profit = player.process_decisions(investments, prices, productions, active_sectors, all_players_active_sectors)
         st.success(f"{player.name}'s Round {player.round-1} Complete!")
         if profit > 0:
             st.success(f"🎉 Total Profit: ${profit:,.0f}!")
