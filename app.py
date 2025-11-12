@@ -19,15 +19,20 @@ class Player:
         self.liquidation_value = 0  # Total liquidation cash
 
     def calculate_liquidation_value(self, sector):
-        # Real-world inspired multipliers based on company valuations (e.g., Tesla for Solar)
-        multipliers = {'Solar': 2.0, 'Wind': 1.5, 'Hydro': 1.0, 'Bioenergy': 1.8}
-        base_value = 500000  # Base liquidation per sector
+        # Boosted multipliers for higher earnings
+        multipliers = {'Solar': 3.0, 'Wind': 2.0, 'Hydro': 1.5, 'Bioenergy': 2.5}
+        base_value = 750000  # Increased base for more cash
         ms = self.sectors[sector]['market_share']
         tl = self.sectors[sector]['tech_level']
         return ms * tl * multipliers[sector] * base_value
 
+    def get_market_price(self):
+        # Suggested buyout price: Revenue + Liquidation + Sector values * premium
+        sector_value = sum(self.calculate_liquidation_value(s) for s in self.sectors if self.sectors[s]['active'])
+        return (self.total_revenue + self.liquidation_value + sector_value) * 1.2
+
     def get_sector_demand(self, sector):
-        base_demands = {'Solar': 0.4, 'Wind': 0.3, 'Hydro': 0.2, 'Bioenergy': 0.1}
+        base_demands = {'Solar': 0.5, 'Wind': 0.4, 'Hydro': 0.3, 'Bioenergy': 0.2}  # Increased for more sales
         demand = base_demands[sector]
         if sector == 'Solar':
             demand *= random.uniform(0.5, 1.5)
@@ -71,7 +76,11 @@ class Player:
                 
                 self.cash -= cost
                 self.sectors[sector]['tech_level'] += rd / 100000
-                self.sectors[sector]['market_share'] = min(self.sectors[sector]['market_share'] + marketing / 100000, 0.4)
+                self.sectors[sector]['market_share'] = min(self.sectors[sector]['market_share'] + marketing / 100000, 0.6)  # Higher cap
+                
+                # High-risk bonus for dominance
+                if self.sectors[sector]['market_share'] > 0.5:
+                    total_profit *= 1.2  # 20% bonus
                 
                 # Rivalry
                 rivals_in_sector = sum(1 for p in all_players_active_sectors if sector in p)
@@ -133,7 +142,7 @@ if 'buyout_offer' not in st.session_state:
 
 # Streamlit App
 st.title("Multi-Sector Clean Energy Startup Simulation")
-st.markdown("Compete, liquidate, and buyout! Winner by Revenue + Liquidation.")
+st.markdown("Compete, liquidate, and buyout! Winner by Revenue + Liquidation. High earnings & fair pricing!")
 
 # Start Screen
 if not st.session_state.game_started:
@@ -175,8 +184,9 @@ st.dataframe(leaderboard)
 if st.session_state.buyout_offer:
     offer = st.session_state.buyout_offer
     target = players[offer['to']]
+    suggested_price = target.get_market_price()
     st.subheader(f"💼 Buyout Offer from {players[offer['from']].name} to {target.name}")
-    st.write(f"Offer: ${offer['amount']:,.0f} for {target.name}'s entire company.")
+    st.write(f"Offer: ${offer['amount']:,.0f} | Suggested Market Price: ${suggested_price:,.0f}")
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Accept"):
@@ -217,9 +227,9 @@ for sector in player.sectors:
         enter = st.checkbox(f"Enter/Stay {sector}", value=player.sectors[sector]['active'], key=f"enter_{sector}")
         if enter:
             active_sectors.append(sector)
-            investments[sector] = st.slider(f"{sector} R&D ($)", 0, 200000, 25000, key=f"rd_{sector}")
+            investments[sector] = st.slider(f"{sector} R&D ($)", 0, 500000, 25000, key=f"rd_{sector}")  # Higher max
             prices[sector] = st.slider(f"{sector} Price ($)", 50, 200, 100, key=f"price_{sector}")
-            productions[sector] = st.slider(f"{sector} Units", 0, 20000, 5000, key=f"prod_{sector}")
+            productions[sector] = st.slider(f"{sector} Units", 0, 50000, 5000, key=f"prod_{sector}")  # Higher max
     with col2:
         if st.checkbox(f"Liquidate & Exit {sector}", key=f"exit_{sector}"):
             exit_sectors.append(sector)
@@ -227,7 +237,9 @@ for sector in player.sectors:
 # Buyout Offer
 st.sidebar.subheader("Make Buyout Offer")
 target_player = st.sidebar.selectbox("Target Player", [p.name for p in players if p != player])
-offer_amount = st.sidebar.number_input("Offer Amount ($)", min_value=0, value=1000000)
+suggested_price = players[next(i for i, p in enumerate(players) if p.name == target_player)].get_market_price()
+st.sidebar.write(f"Suggested Market Price: ${suggested_price:,.0f}")
+offer_amount = st.sidebar.number_input("Your Offer Amount ($)", min_value=0, value=int(suggested_price))
 if st.sidebar.button("Send Offer"):
     target_index = next(i for i, p in enumerate(players) if p.name == target_player)
     st.session_state.buyout_offer = {'from': current_player, 'to': target_index, 'amount': offer_amount}
@@ -266,7 +278,10 @@ with col3:
 
 for sector, data in player.sectors.items():
     if data['active']:
-        liq = player.calculate_liquidation_value(sector)
+        try:
+            liq = player.calculate_liquidation_value(sector)
+        except AttributeError:
+            liq = 0  # Default if method fails
         st.write(f"**{sector}**: MS {data['market_share']:.1%}, Tech {data['tech_level']:.1f}, Est. Liq ${liq:,.0f}")
 
 # Events
@@ -323,8 +338,4 @@ if all_done or len(players) == 1:
         </style>
         <div class="loser-bg">💥 YOU LOSE! 💥</div>
         """, unsafe_allow_html=True)
-        st.error(f"Better luck next time, {loser.name}. Score: ${getattr(loser, 'total_revenue', 0) + getattr(loser, 'liquidation_value', 0):,.0f}")
-    
-    if st.button("Restart"):
-        st.session_state.clear()
-        st.rerun()
+        st.error(f"Better luck next time, {loser.name}. Score: ${getattr(loser, 'total_revenue', 0) + getattr(loser,
