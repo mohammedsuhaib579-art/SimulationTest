@@ -184,7 +184,10 @@ st.dataframe(leaderboard)
 if st.session_state.buyout_offer:
     offer = st.session_state.buyout_offer
     target = players[offer['to']]
-    suggested_price = target.get_market_price()
+    try:
+        suggested_price = target.get_market_price()
+    except AttributeError:
+        suggested_price = 1000000  # Default if method fails
     st.subheader(f"💼 Buyout Offer from {players[offer['from']].name} to {target.name}")
     st.write(f"Offer: ${offer['amount']:,.0f} | Suggested Market Price: ${suggested_price:,.0f}")
     col1, col2 = st.columns(2)
@@ -237,7 +240,10 @@ for sector in player.sectors:
 # Buyout Offer
 st.sidebar.subheader("Make Buyout Offer")
 target_player = st.sidebar.selectbox("Target Player", [p.name for p in players if p != player])
-suggested_price = players[next(i for i, p in enumerate(players) if p.name == target_player)].get_market_price()
+try:
+    suggested_price = players[next(i for i, p in enumerate(players) if p.name == target_player)].get_market_price()
+except AttributeError:
+    suggested_price = 1000000  # Default if method fails
 st.sidebar.write(f"Suggested Market Price: ${suggested_price:,.0f}")
 offer_amount = st.sidebar.number_input("Your Offer Amount ($)", min_value=0, value=int(suggested_price))
 if st.sidebar.button("Send Offer"):
