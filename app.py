@@ -325,17 +325,8 @@ if all_done or len(players) == 1:
     
     # Loser Message
     if loser:
-        st.markdown("""
-        <style>
-        .loser-bg {
-            background-color: darkred !important;
-            color: white !important;
-            padding: 20px;
-            text-align: center;
-            font-size: 36px;
-            font-weight: bold;
-        }
-        </style>
-        <div class="loser-bg">💥 YOU LOSE! 💥</div>
-        """, unsafe_allow_html=True)
-        st.error(f"Better luck next time, {loser.name}. Score: ${getattr(loser, 'total_revenue', 0) + getattr(loser,
+        st.error(f"Better luck next time, {loser.name}. Score: ${getattr(loser, 'total_revenue', 0) + getattr(loser, 'liquidation_value', 0):,.0f}")
+    
+    if st.button("Restart"):
+        st.session_state.clear()
+        st.rerun()
