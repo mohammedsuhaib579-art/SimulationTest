@@ -42,13 +42,13 @@ class CleanEnergyStartup:
         event = random.choice(["tech_breakthrough", "competition", "regulation", "none"])
         if event == "tech_breakthrough":
             self.tech_level += 0.5
-            self.last_event = "Technological Breakthrough! Tech level increased."
+            self.last_event = "⚡ Technological Breakthrough! Tech level increased."
         elif event == "competition":
             self.market_share *= 0.9
-            self.last_event = "New Competitor! Market share decreased."
+            self.last_event = "⚠️ New Competitor! Market share decreased."
         elif event == "regulation":
             self.market_share *= 1.1
-            self.last_event = "Favorable Regulations! Market share increased."
+            self.last_event = "📜 Favorable Regulations! Market share increased."
         else:
             self.last_event = "No major event this round."
 
@@ -96,6 +96,13 @@ if st.sidebar.button("Submit Decisions & Advance Round"):
     if startup.round <= startup.max_rounds and startup.cash > 0:
         units_sold, revenue, profit = startup.process_decisions(rd_investment, marketing_spend, price_per_unit, units_produced)
         st.success(f"Round {startup.round-1} Complete!")
+        # Profit/Loss Flares
+        if profit > 0:
+            st.success(f"🎉 Profit Alert: You made ${profit:,.0f} this round! Great job!")
+        elif profit < 0:
+            st.error(f"💸 Loss Alert: You incurred a loss of ${-profit:,.0f}. Adjust your strategy!")
+        else:
+            st.info("📊 Break-Even: No profit or loss this round.")
     else:
         st.error("Game Over!")
 
@@ -111,14 +118,16 @@ with col3:
 st.subheader(f"Round {startup.round} / {startup.max_rounds}")
 st.write(f"Estimated Demand: {startup.get_demand():.1%}")
 
+# More Prominent Events
 if startup.last_event != "None":
-    st.info(f"Event: {startup.last_event}")
+    st.subheader("🔥 Round Event")
+    st.markdown(f"**{startup.last_event}**")  # Bold and larger for prominence
 
-# Results and History
+# Results and History (Full History Now Visible)
 if st.session_state.history:
     df = pd.DataFrame(st.session_state.history)
-    st.subheader("Round Results")
-    st.dataframe(df.tail(1))  # Show latest round
+    st.subheader("Round Results (Full History)")
+    st.dataframe(df)  # Shows all rounds, not just the latest
 
     # Simplified Trends
     st.subheader("Trends")
