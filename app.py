@@ -241,15 +241,19 @@ for sector in player.sectors:
 st.sidebar.subheader("Make Buyout Offer")
 target_player = st.sidebar.selectbox("Target Player", [p.name for p in players if p != player])
 try:
-    suggested_price = players[next(i for i, p in enumerate(players) if p.name == target_player)].get_market_price()
-except AttributeError:
-    suggested_price = 1000000  # Default if method fails
+    target_index = next(i for i, p in enumerate(players) if p.name == target_player)
+    suggested_price = players[target_index].get_market_price()
+except (StopIteration, AttributeError):
+    suggested_price = 1000000  # Default if player not found or method fails
 st.sidebar.write(f"Suggested Market Price: ${suggested_price:,.0f}")
 offer_amount = st.sidebar.number_input("Your Offer Amount ($)", min_value=0, value=int(suggested_price))
 if st.sidebar.button("Send Offer"):
-    target_index = next(i for i, p in enumerate(players) if p.name == target_player)
-    st.session_state.buyout_offer = {'from': current_player, 'to': target_index, 'amount': offer_amount}
-    st.sidebar.success("Offer sent!")
+    try:
+        target_index = next(i for i, p in enumerate(players) if p.name == target_player)
+        st.session_state.buyout_offer = {'from': current_player, 'to': target_index, 'amount': offer_amount}
+        st.sidebar.success("Offer sent!")
+    except StopIteration:
+        st.sidebar.error("Target player not found!")
 
 if st.sidebar.button("Submit Decisions & Next Turn"):
     if player.round <= player.max_rounds and player.cash > 0:
