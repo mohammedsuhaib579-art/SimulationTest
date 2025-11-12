@@ -157,15 +157,15 @@ if global_event != "none":
 
 all_players_active_sectors = [set(s for s in p.sectors if p.sectors[s]['active']) for p in players]
 
-# Leaderboard
+# Leaderboard - Fixed: Safe attribute access
 st.subheader("🏆 Leaderboard")
 leaderboard = pd.DataFrame([
     {
         'Player': p.name,
         'Cash': p.cash,
-        'Total Revenue': p.total_revenue,
-        'Liquidation Value': p.liquidation_value,
-        'Score (Rev + Liq)': p.total_revenue + p.liquidation_value,
+        'Total Revenue': getattr(p, 'total_revenue', 0),
+        'Liquidation Value': getattr(p, 'liquidation_value', 0),
+        'Score (Rev + Liq)': getattr(p, 'total_revenue', 0) + getattr(p, 'liquidation_value', 0),
         'Dominant Sector': max(p.sectors, key=lambda s: p.sectors[s]['market_share']) if any(p.sectors[s]['market_share'] > 0 for s in p.sectors) else 'None'
     } for p in players
 ]).sort_values('Score (Rev + Liq)', ascending=False)
@@ -246,8 +246,8 @@ if st.sidebar.button("Submit Decisions & Next Turn"):
             'Player': player.name,
             'Round': player.round-1,
             'Cash': player.cash,
-            'Revenue': player.total_revenue,
-            'Liquidation': player.liquidation_value
+            'Revenue': getattr(player, 'total_revenue', 0),
+            'Liquidation': getattr(player, 'liquidation_value', 0)
         })
         
         st.session_state.current_player = (current_player + 1) % len(players)
@@ -260,9 +260,9 @@ col1, col2, col3 = st.columns(3)
 with col1:
     st.metric("Cash", f"${player.cash:,.0f}")
 with col2:
-    st.metric("Total Revenue", f"${player.total_revenue:,.0f}")
+    st.metric("Total Revenue", f"${getattr(player, 'total_revenue', 0):,.0f}")
 with col3:
-    st.metric("Liquidation Value", f"${player.liquidation_value:,.0f}")
+    st.metric("Liquidation Value", f"${getattr(player, 'liquidation_value', 0):,.0f}")
 
 for sector, data in player.sectors.items():
     if data['active']:
@@ -287,7 +287,7 @@ if st.session_state.history:
 all_done = all(p.round > p.max_rounds or p.cash <= 0 for p in players)
 if all_done or len(players) == 1:
     st.subheader("Game Over!")
-    winners = sorted(players, key=lambda p: p.total_revenue + p.liquidation_value, reverse=True)
+    winners = sorted(players, key=lambda p: getattr(p, 'total_revenue', 0) + getattr(p, 'liquidation_value', 0), reverse=True)
     winner = winners[0]
     loser = winners[-1] if len(winners) > 1 else None
     
@@ -306,7 +306,7 @@ if all_done or len(players) == 1:
     </style>
     <div class="winner-bg">🎉 YOU WIN! 🎉</div>
     """, unsafe_allow_html=True)
-    st.success(f"Congratulations {winner.name}! Score: ${winner.total_revenue + winner.liquidation_value:,.0f}")
+    st.success(f"Congratulations {winner.name}! Score: ${getattr(winner, 'total_revenue', 0) + getattr(winner, 'liquidation_value', 0):,.0f}")
     
     # Loser Message
     if loser:
@@ -323,7 +323,7 @@ if all_done or len(players) == 1:
         </style>
         <div class="loser-bg">💥 YOU LOSE! 💥</div>
         """, unsafe_allow_html=True)
-        st.error(f"Better luck next time, {loser.name}. Score: ${loser.total_revenue + loser.liquidation_value:,.0f}")
+        st.error(f"Better luck next time, {loser.name}. Score: ${getattr(loser, 'total_revenue', 0) + getattr(loser, 'liquidation_value', 0):,.0f}")
     
     if st.button("Restart"):
         st.session_state.clear()
