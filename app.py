@@ -1,13 +1,6 @@
 import streamlit as st
 import random
 import pandas as pd
-import matplotlib.pyplot as plt
-
-# Initialize session state for persistence across runs
-if 'startup' not in st.session_state:
-    st.session_state.startup = CleanEnergyStartup()
-if 'history' not in st.session_state:
-    st.session_state.history = []  # To track metrics over rounds for graphs
 
 class CleanEnergyStartup:
     def __init__(self):
@@ -80,6 +73,12 @@ class CleanEnergyStartup:
 
         return units_sold, revenue, profit
 
+# Initialize session state for persistence across runs (now after class definition)
+if 'startup' not in st.session_state:
+    st.session_state.startup = CleanEnergyStartup()
+if 'history' not in st.session_state:
+    st.session_state.history = []
+
 # Streamlit App
 st.title("Clean Energy Startup Simulation")
 st.markdown("Inspired by MIT Sloan. Manage your startup over 5 rounds!")
@@ -121,18 +120,9 @@ if st.session_state.history:
     st.subheader("Round Results")
     st.dataframe(df.tail(1))  # Show latest round
 
-    # Graphs
+    # Simplified Trends
     st.subheader("Trends")
-    fig, ax = plt.subplots(1, 2, figsize=(10, 4))
-    ax[0].plot(df['Round'], df['Cash'], marker='o')
-    ax[0].set_title("Cash Over Rounds")
-    ax[0].set_xlabel("Round")
-    ax[0].set_ylabel("Cash ($)")
-    ax[1].plot(df['Round'], df['Market Share'], marker='o', color='green')
-    ax[1].set_title("Market Share Over Rounds")
-    ax[1].set_xlabel("Round")
-    ax[1].set_ylabel("Market Share")
-    st.pyplot(fig)
+    st.line_chart(df.set_index('Round')[['Cash', 'Market Share']])  # Simple line chart
 
 # End Game
 if startup.round > startup.max_rounds or startup.cash <= 0:
