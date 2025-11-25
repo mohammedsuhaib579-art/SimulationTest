@@ -640,15 +640,6 @@ with st.sidebar.expander("Sector Plays", expanded=True):
         )
         if enter:
             active_sectors.append(sector)
-            if (
-                not player.sectors[sector]["active"]
-                and not st.session_state[anim_flag_key]
-            ):
-                st.session_state["sector_entry_animation"] = {
-                    "sector": sector,
-                    "expires": time.time() + 5,
-                }
-                st.session_state[anim_flag_key] = True
             investments[sector] = st.slider(
                 f"{sector} R&D",
                 0,
@@ -838,11 +829,19 @@ if st.sidebar.button("Submit Round", use_container_width=True):
         )
 
         for dept in DEPARTMENTS:
-            st.session_state[f"{player.name}_{dept}_delta"] = 0
-            st.session_state[f"{player.name}_{dept}_train"] = 0
+            delta_key = f"{player.name}_{dept}_delta"
+            train_key = f"{player.name}_{dept}_train"
+            if delta_key in st.session_state:
+                st.session_state[delta_key] = 0
+            if train_key in st.session_state:
+                st.session_state[train_key] = 0
         for sector in SECTORS:
-            st.session_state[f"{player.name}_{sector}_anim_flag"] = False
-            st.session_state[f"{player.name}_{sector}_exit"] = False
+            anim_flag_key = f"{player.name}_{sector}_anim_flag"
+            exit_key = f"{player.name}_{sector}_exit"
+            if anim_flag_key in st.session_state:
+                st.session_state[anim_flag_key] = False
+            if exit_key in st.session_state:
+                st.session_state[exit_key] = False
 
         st.session_state.current_player = (current_player + 1) % len(players)
         st.session_state.global_event = random.choice(GLOBAL_EVENTS)
