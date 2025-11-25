@@ -1,4 +1,5 @@
 import random
+import time
 from typing import Dict, List
 
 import altair as alt
@@ -17,6 +18,7 @@ THEME = """
 body, .main {
     background: linear-gradient(140deg, #02070c 0%, #041926 30%, #012d3d 70%, #063238 100%);
     color: #f3f7fb;
+    animation: aurora 18s ease-in-out infinite;
 }
 .stMetric, .stDataFrame, .stTable {
     border-radius: 14px;
@@ -27,9 +29,11 @@ body, .main {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.06);
     box-shadow: 0px 10px 35px rgba(0, 0, 0, 0.35);
+    animation: floaty 6s ease-in-out infinite;
 }
 .glow {
     text-shadow: 0 0 18px rgba(24, 217, 182, 0.4);
+    animation: pulse 3s ease-in-out infinite;
 }
 .section-label {
     letter-spacing: 0.25rem;
@@ -51,6 +55,150 @@ body, .main {
     background: rgba(255,255,255,0.1);
     border-radius: 999px;
     margin-right: 0.4rem;
+}
+.animated-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 18px;
+    padding: 1.2rem;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.08);
+    animation: cardGlow 5s ease-in-out infinite;
+}
+.animated-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: 1px solid rgba(24,217,182,0.35);
+    opacity: 0;
+    animation: cardPulse 4s infinite;
+}
+.entry-overlay {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    width: 420px;
+    height: 240px;
+    backdrop-filter: blur(12px);
+    background: rgba(4,25,38,0.82);
+    border: 2px solid rgba(24,217,182,0.5);
+    border-radius: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: overlayFade 0.4s ease-out forwards;
+}
+.studio {
+    width: 360px;
+    height: 180px;
+    position: relative;
+}
+.desk {
+    position: absolute;
+    width: 100%;
+    height: 55px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    bottom: 60px;
+}
+.teammate {
+    position: absolute;
+    width: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    animation: bob 3s ease-in-out infinite;
+}
+.teammate .head {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #f6bd60;
+    margin-bottom: 6px;
+}
+.teammate .body {
+    width: 48px;
+    height: 52px;
+    border-radius: 18px;
+    background: #1E88E5;
+    position: relative;
+    overflow: hidden;
+}
+.teammate .laptop {
+    width: 48px;
+    height: 32px;
+    background: #90caf9;
+    border-radius: 6px;
+    border: 2px solid #0d47a1;
+    position: absolute;
+    top: 12px;
+    animation: typing 0.8s ease-in-out infinite;
+}
+.teammate:nth-child(2) .body,
+.teammate:nth-child(2) .laptop {
+    background: #EC407A;
+    border-color: #880E4F;
+}
+.teammate:nth-child(3) .body,
+.teammate:nth-child(3) .laptop {
+    background: #26A69A;
+    border-color: #004D40;
+}
+.teammate:nth-child(4) .body,
+.teammate:nth-child(4) .laptop {
+    background: #FF7043;
+    border-color: #BF360C;
+}
+.teammate:nth-child(1) { left: 10px; animation-delay: 0s; }
+.teammate:nth-child(2) { left: 95px; animation-delay: 0.15s; }
+.teammate:nth-child(3) { left: 190px; animation-delay: 0.3s; }
+.teammate:nth-child(4) { left: 275px; animation-delay: 0.45s; }
+.entry-caption {
+    position: absolute;
+    bottom: -30px;
+    width: 100%;
+    text-align: center;
+    font-size: 0.85rem;
+    letter-spacing: 0.2rem;
+    color: #18d9b6;
+}
+@keyframes aurora {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+@keyframes pulse {
+    0%,100% { opacity: 0.85; }
+    50% { opacity: 1; }
+}
+@keyframes floaty {
+    0%,100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+}
+@keyframes cardGlow {
+    0%,100% { box-shadow: 0 8px 25px rgba(0,0,0,0.25); }
+    50% { box-shadow: 0 12px 40px rgba(24,217,182,0.25); }
+}
+@keyframes cardPulse {
+    0% { opacity: 0; transform: scale(0.95); }
+    50% { opacity: 0.5; transform: scale(1.05); }
+    100% { opacity: 0; transform: scale(0.95); }
+}
+@keyframes bob {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+@keyframes typing {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+}
+@keyframes overlayFade {
+    from { opacity: 0; transform: translate(-50%, -60%); }
+    to { opacity: 1; transform: translate(-50%, -50%); }
 }
 </style>
 """
@@ -287,6 +435,7 @@ def bootstrap_session():
         "history": [],
         "buyout_offer": None,
         "global_event": random.choice(GLOBAL_EVENTS),
+        "sector_entry_animation": {"sector": None, "expires": 0},
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
@@ -345,6 +494,8 @@ if len(players) == 0:
     st.session_state.global_event = random.choice(GLOBAL_EVENTS)
     players = fallback_players
 
+st.session_state.setdefault("sector_entry_animation", {"sector": None, "expires": 0})
+
 current_player = st.session_state.current_player % len(players)
 player = players[current_player]
 global_event = st.session_state.get("global_event", random.choice(GLOBAL_EVENTS))
@@ -355,6 +506,43 @@ if global_event != "none":
 all_players_active_sectors = [
     {s for s, data in p.sectors.items() if data["active"]} for p in players
 ]
+
+animation_state = st.session_state.get("sector_entry_animation", {})
+if animation_state.get("sector") and animation_state.get("expires", 0) > time.time():
+    sector_name = animation_state["sector"]
+    st.markdown(
+        f"""
+        <div class="entry-overlay">
+            <div class="studio">
+                <div class="desk"></div>
+                <div class="teammate">
+                    <div class="head"></div>
+                    <div class="body"></div>
+                    <div class="laptop"></div>
+                </div>
+                <div class="teammate">
+                    <div class="head"></div>
+                    <div class="body"></div>
+                    <div class="laptop"></div>
+                </div>
+                <div class="teammate">
+                    <div class="head"></div>
+                    <div class="body"></div>
+                    <div class="laptop"></div>
+                </div>
+                <div class="teammate">
+                    <div class="head"></div>
+                    <div class="body"></div>
+                    <div class="laptop"></div>
+                </div>
+                <div class="entry-caption">IGNITING {sector_name.upper()} OPS</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+elif animation_state.get("sector"):
+    st.session_state["sector_entry_animation"] = {"sector": None, "expires": 0}
 
 
 # --- Leaderboard -----------------------------------------------------------------
@@ -432,19 +620,26 @@ with st.sidebar.expander("Sector Plays", expanded=True):
         mkt_key = f"{player.name}_{sector}_mkt"
         price_key = f"{player.name}_{sector}_price"
         prod_key = f"{player.name}_{sector}_prod"
+        anim_flag_key = f"{player.name}_{sector}_anim_flag"
+        if anim_flag_key not in st.session_state:
+            st.session_state[anim_flag_key] = False
 
         enter = st.checkbox(
             f"Activate {sector}",
             value=player.sectors[sector]["active"],
             key=enter_key,
         )
-        exit_sector = st.checkbox(
-            f"Exit {sector}",
-            value=False,
-            key=exit_key,
-        )
         if enter:
             active_sectors.append(sector)
+            if (
+                not player.sectors[sector]["active"]
+                and not st.session_state[anim_flag_key]
+            ):
+                st.session_state["sector_entry_animation"] = {
+                    "sector": sector,
+                    "expires": time.time() + 5,
+                }
+                st.session_state[anim_flag_key] = True
             investments[sector] = st.slider(
                 f"{sector} R&D",
                 0,
@@ -477,8 +672,16 @@ with st.sidebar.expander("Sector Plays", expanded=True):
                 step=1_000,
                 key=prod_key,
             )
-        if exit_sector:
-            exit_sectors.append(sector)
+            exit_sector = st.checkbox(
+                f"Exit {sector}",
+                value=False,
+                key=exit_key,
+            )
+            if exit_sector:
+                exit_sectors.append(sector)
+        else:
+            st.session_state[exit_key] = False
+            st.session_state[anim_flag_key] = False
 
 with st.sidebar.expander("People Ops", expanded=True):
     for dept in DEPARTMENTS:
@@ -621,6 +824,9 @@ if st.sidebar.button("Submit Round", use_container_width=True):
         for dept in DEPARTMENTS:
             st.session_state[f"{player.name}_{dept}_delta"] = 0
             st.session_state[f"{player.name}_{dept}_train"] = 0
+        for sector in SECTORS:
+            st.session_state[f"{player.name}_{sector}_anim_flag"] = False
+            st.session_state[f"{player.name}_{sector}_exit"] = False
 
         st.session_state.current_player = (current_player + 1) % len(players)
         st.session_state.global_event = random.choice(GLOBAL_EVENTS)
