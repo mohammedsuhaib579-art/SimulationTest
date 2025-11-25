@@ -5,6 +5,7 @@ from typing import Dict, List
 import altair as alt
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 # --- Global configuration (Hugging Face friendly) --------------------------------
 st.set_page_config(
@@ -203,6 +204,45 @@ body, .main {
 </style>
 """
 st.markdown(THEME, unsafe_allow_html=True)
+
+
+def render_entry_animation(sector: str) -> None:
+    """Display a lightweight animated studio scene when a sector turns on."""
+    components.html(
+        f"""
+        <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+            z-index:9999;width:420px;height:260px;background:rgba(4,25,38,0.9);
+            border:2px solid rgba(24,217,182,0.5);border-radius:28px;
+            backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:center;">
+            <div style="width:360px;height:200px;position:relative;">
+                <div style="position:absolute;width:100%;height:70px;background:rgba(255,255,255,0.08);
+                    border:1px solid rgba(255,255,255,0.1);border-radius:24px;bottom:70px;"></div>
+                {"".join([
+                    f'<div style="position:absolute;width:80px;left:{pos}px;animation:bob 3s ease-in-out infinite;animation-delay:{delay}s;display:flex;flex-direction:column;align-items:center;">'
+                    f'<div style="width:38px;height:38px;border-radius:50%;background:#f6bd60;margin-bottom:6px;"></div>'
+                    f'<div style="width:52px;height:56px;border-radius:18px;background:{body};position:relative;overflow:hidden;"></div>'
+                    f'<div style="width:54px;height:36px;border-radius:8px;background:{laptop};border:2px solid {border};position:absolute;top:116px;animation:typing 0.8s ease-in-out infinite;"></div>'
+                    f"</div>"
+                    for pos, delay, body, laptop, border in [
+                        (0, 0.0, "#1E88E5", "#90caf9", "#0d47a1"),
+                        (95, 0.15, "#EC407A", "#f48fb1", "#880E4F"),
+                        (190, 0.3, "#26A69A", "#80cbc4", "#004D40"),
+                        (285, 0.45, "#FF7043", "#ffab91", "#BF360C"),
+                    ]
+                ])}
+                <div style="position:absolute;bottom:-40px;width:100%;text-align:center;
+                    font-size:0.9rem;letter-spacing:0.25rem;color:#18d9b6;">
+                    IGNITING {sector.upper()} OPS
+                </div>
+            </div>
+        </div>
+        <style>
+            @keyframes bob {{0%,100%{{transform:translateY(0);}}50%{{transform:translateY(-6px);}}}}
+            @keyframes typing {{0%,100%{{transform:translateY(0);}}50%{{transform:translateY(-3px);}}}}
+        </style>
+        """,
+        height=320,
+    )
 
 
 # --- Simulation constants --------------------------------------------------------
@@ -509,38 +549,7 @@ all_players_active_sectors = [
 
 animation_state = st.session_state.get("sector_entry_animation", {})
 if animation_state.get("sector") and animation_state.get("expires", 0) > time.time():
-    sector_name = animation_state["sector"]
-    st.markdown(
-        f"""
-        <div class="entry-overlay">
-            <div class="studio">
-                <div class="desk"></div>
-                <div class="teammate">
-                    <div class="head"></div>
-                    <div class="body"></div>
-                    <div class="laptop"></div>
-                </div>
-                <div class="teammate">
-                    <div class="head"></div>
-                    <div class="body"></div>
-                    <div class="laptop"></div>
-                </div>
-                <div class="teammate">
-                    <div class="head"></div>
-                    <div class="body"></div>
-                    <div class="laptop"></div>
-                </div>
-                <div class="teammate">
-                    <div class="head"></div>
-                    <div class="body"></div>
-                    <div class="laptop"></div>
-                </div>
-                <div class="entry-caption">IGNITING {sector_name.upper()} OPS</div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    render_entry_animation(animation_state["sector"])
 elif animation_state.get("sector"):
     st.session_state["sector_entry_animation"] = {"sector": None, "expires": 0}
 
@@ -707,6 +716,13 @@ with st.sidebar.expander("People Ops", expanded=True):
             key=train_key,
         )
         workforce_plan[dept] = {"net_change": net_change, "training": training}
+        unit_cost = DEPARTMENTS[dept]["hire_cost"] if net_change > 0 else DEPARTMENTS[dept]["fire_cost"]
+        one_time = abs(net_change) * unit_cost
+        projected_count = max(0, player.workforce[dept]["count"] + net_change)
+        monthly_payroll = (projected_count * DEPARTMENTS[dept]["salary"]) / 12
+        st.caption(
+            f"One-time impact: ${one_time:,.0f} | Training: ${training:,.0f} | Monthly payroll after move: ${monthly_payroll:,.0f}"
+        )
 
 if len(players) > 1:
     st.sidebar.subheader("Strategic Buyout")
