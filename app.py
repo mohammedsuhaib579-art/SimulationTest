@@ -535,6 +535,11 @@ if len(players) == 0:
     players = fallback_players
 
 st.session_state.setdefault("sector_entry_animation", {"sector": None, "expires": 0})
+st.session_state.setdefault("current_player", 0)
+
+if len(players) == 0:
+    st.warning("No players found. Please restart the game.")
+    st.stop()
 
 current_player = st.session_state.current_player % len(players)
 player = players[current_player]
@@ -547,30 +552,31 @@ all_players_active_sectors = [
     {s for s, data in p.sectors.items() if data["active"]} for p in players
 ]
 
+# --- Animation Display (show first) ----------------------------------------------
 animation_state = st.session_state.get("sector_entry_animation", {})
 if animation_state.get("sector") and animation_state.get("expires", 0) > time.time():
     render_entry_animation(animation_state["sector"])
 elif animation_state.get("sector"):
+    # Animation expired, clear it
     st.session_state["sector_entry_animation"] = {"sector": None, "expires": 0}
-
 
 # --- Leaderboard -----------------------------------------------------------------
 st.subheader("🏆 Live Leaderboard")
+# Highlight current player
+leaderboard_data = []
+for i, p in enumerate(players):
+    player_name = f"👉 {p.name}" if i == current_player else p.name
+    leaderboard_data.append({
+        "Player": player_name,
+        "Cash": p.cash,
+        "Total Revenue": getattr(p, "total_revenue", 0),
+        "Liquidation Value": getattr(p, "liquidation_value", 0),
+        "HR Bench": sum(d["count"] for d in p.workforce.values()),
+        "Score": getattr(p, "total_revenue", 0)
+        + getattr(p, "liquidation_value", 0),
+    })
 leaderboard = (
-    pd.DataFrame(
-        [
-            {
-                "Player": p.name,
-                "Cash": p.cash,
-                "Total Revenue": getattr(p, "total_revenue", 0),
-                "Liquidation Value": getattr(p, "liquidation_value", 0),
-                "HR Bench": sum(d["count"] for d in p.workforce.values()),
-                "Score": getattr(p, "total_revenue", 0)
-                + getattr(p, "liquidation_value", 0),
-            }
-            for p in players
-        ]
-    )
+    pd.DataFrame(leaderboard_data)
     .sort_values("Score", ascending=False)
     .reset_index(drop=True)
 )
@@ -828,22 +834,39 @@ if st.sidebar.button("Submit Round", use_container_width=True):
             }
         )
 
+        # Trigger animation for active sectors
+        if active_sectors:
+            first_active = active_sectors[0]
+            st.session_state["sector_entry_animation"] = {
+                "sector": first_active,
+                "expires": time.time() + 5,
+            }
+
+        # Safely reset widget-backed session state keys
         for dept in DEPARTMENTS:
             delta_key = f"{player.name}_{dept}_delta"
             train_key = f"{player.name}_{dept}_train"
-            if delta_key in st.session_state:
-                st.session_state[delta_key] = 0
-            if train_key in st.session_state:
-                st.session_state[train_key] = 0
+            try:
+                if delta_key in st.session_state:
+                    del st.session_state[delta_key]
+                if train_key in st.session_state:
+                    del st.session_state[train_key]
+            except:
+                pass
         for sector in SECTORS:
             anim_flag_key = f"{player.name}_{sector}_anim_flag"
             exit_key = f"{player.name}_{sector}_exit"
-            if anim_flag_key in st.session_state:
-                st.session_state[anim_flag_key] = False
-            if exit_key in st.session_state:
-                st.session_state[exit_key] = False
+            try:
+                if anim_flag_key in st.session_state:
+                    del st.session_state[anim_flag_key]
+                if exit_key in st.session_state:
+                    del st.session_state[exit_key]
+            except:
+                pass
 
-        st.session_state.current_player = (current_player + 1) % len(players)
+        # Rotate to next player (1->2->3->4->1)
+        next_player = (current_player + 1) % len(players)
+        st.session_state.current_player = next_player
         st.session_state.global_event = random.choice(GLOBAL_EVENTS)
         st.rerun()
     else:
