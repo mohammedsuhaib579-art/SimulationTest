@@ -541,7 +541,28 @@ if len(players) == 0:
     st.warning("No players found. Please restart the game.")
     st.stop()
 
-current_player = st.session_state.current_player % len(players)
+# Ensure current_player is within valid range and find next active player if needed
+current_player_idx = st.session_state.current_player % len(players)
+active_players = [i for i, p in enumerate(players) if p.round <= p.max_rounds and p.cash > 0]
+
+if active_players:
+    # If current player can't play, find next active player
+    if current_player_idx not in active_players:
+        # Find next active player after current index
+        next_idx = None
+        for i in range(len(players)):
+            check_idx = (current_player_idx + 1 + i) % len(players)
+            if check_idx in active_players:
+                next_idx = check_idx
+                break
+        if next_idx is not None:
+            st.session_state.current_player = next_idx
+            current_player_idx = next_idx
+else:
+    # No active players, game should end
+    pass
+
+current_player = current_player_idx
 player = players[current_player]
 global_event = st.session_state.get("global_event", random.choice(GLOBAL_EVENTS))
 event_label = global_event.replace("_", " ").title()
@@ -749,7 +770,8 @@ else:
 
 
 # --- Main dashboard --------------------------------------------------------------
-st.subheader(f"{player.name}'s Command Center — Round {player.round}/{player.max_rounds}")
+turn_info = f"Turn {current_player + 1} of {len(players)}"
+st.subheader(f"🎯 {player.name}'s Command Center — Round {player.round}/{player.max_rounds} ({turn_info})")
 dash_col1, dash_col2, dash_col3, dash_col4 = st.columns(4)
 with dash_col1:
     st.metric("Cash", f"${player.cash:,.0f}")
@@ -864,9 +886,18 @@ if st.sidebar.button("Submit Round", use_container_width=True):
             except:
                 pass
 
-        # Rotate to next player (1->2->3->4->1)
-        next_player = (current_player + 1) % len(players)
-        st.session_state.current_player = next_player
+        # Rotate to next player (1->2->3->4->1) - ensure we always rotate
+        # Find next active player in rotation order
+        next_player_index = (current_player + 1) % len(players)
+        # Skip players who are done, find next active one
+        attempts = 0
+        while attempts < len(players):
+            if players[next_player_index].round <= players[next_player_index].max_rounds and players[next_player_index].cash > 0:
+                break
+            next_player_index = (next_player_index + 1) % len(players)
+            attempts += 1
+        
+        st.session_state.current_player = next_player_index
         st.session_state.global_event = random.choice(GLOBAL_EVENTS)
         st.rerun()
     else:
@@ -883,17 +914,44 @@ if player.last_events:
 # --- End game --------------------------------------------------------------------
 all_done = all(p.round > p.max_rounds or p.cash <= 0 for p in players)
 if all_done or len(players) == 1:
+    # Auto-liquidate all sectors for all players
+    if not st.session_state.get("final_liquidation_done", False):
+        for p in players:
+            for sector in SECTORS:
+                if p.sectors[sector]["active"]:
+                    liquidation = p.calculate_liquidation_value(sector)
+                    p.cash += liquidation
+                    p.liquidation_value += liquidation
+                    p.sectors[sector] = {"market_share": 0.0, "tech_level": 1.0, "active": False}
+        st.session_state["final_liquidation_done"] = True
+        st.rerun()
+    
     st.subheader("Final Scores")
-    summary = sorted(
-        players,
-        key=lambda p: getattr(p, "total_revenue", 0) + getattr(p, "liquidation_value", 0),
-        reverse=True,
-    )
-    winner = summary[0]
+    # Calculate final score: Cash + Liquidation + Total Revenue
+    final_scores = []
+    for p in players:
+        final_score = p.cash + p.liquidation_value + p.total_revenue
+        final_scores.append({
+            "Player": p.name,
+            "Cash": p.cash,
+            "Liquidation Value": p.liquidation_value,
+            "Total Revenue": p.total_revenue,
+            "Final Score": final_score,
+        })
+    
+    scores_df = pd.DataFrame(final_scores).sort_values("Final Score", ascending=False)
+    st.dataframe(scores_df, use_container_width=True)
+    
+    # Find winner by highest final score
+    winner_data = max(final_scores, key=lambda x: x["Final Score"])
+    winner = next(p for p in players if p.name == winner_data["Player"])
+    winner_score = winner_data["Final Score"]
+    
     st.balloons()
     st.success(
-        f"{winner.name} wins with ${winner.total_revenue + winner.liquidation_value:,.0f}!"
+        f"🏆 {winner.name} wins with a Final Score of ${winner_score:,.0f}!"
     )
+    st.caption("Final Score = Cash + Liquidation Value + Total Revenue")
     if st.button("Restart Simulation", use_container_width=True):
         st.session_state.clear()
         st.rerun()
